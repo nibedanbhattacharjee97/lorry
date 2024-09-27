@@ -16,7 +16,8 @@ def create_user_table():
     user_c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone_number TEXT
+            phone_number TEXT UNIQUE,
+            password TEXT
         )
     ''')
     user_conn.commit()
@@ -36,13 +37,13 @@ def create_lorry_table():
     lorry_conn.commit()
 
 # Insert user data into the user database
-def insert_user(phone_number):
-    user_c.execute('INSERT INTO users (phone_number) VALUES (?)', (phone_number,))
+def insert_user(phone_number, password):
+    user_c.execute('INSERT INTO users (phone_number, password) VALUES (?, ?)', (phone_number, password))
     user_conn.commit()
 
-# Check if the phone number exists in the user database
-def validate_user(phone_number):
-    user_c.execute('SELECT * FROM users WHERE phone_number = ?', (phone_number,))
+# Check if the phone number and password are valid
+def validate_user(phone_number, password):
+    user_c.execute('SELECT * FROM users WHERE phone_number = ? AND password = ?', (phone_number, password))
     return user_c.fetchone()
 
 # Function to insert data into the lorry database
@@ -75,23 +76,34 @@ if 'logged_in' not in st.session_state:
 if not st.session_state.logged_in:
     st.title("Login")
     phone_number = st.text_input("Enter your phone number", max_chars=10)
+    password = st.text_input("Enter your password", type="password")
     
     if st.button("Login"):
         # Check phone number length
         if len(phone_number) != 10 or not phone_number.isdigit():
             st.error("Invalid phone number. Please enter a 10-digit number.")
         else:
-            # Check if the user is already registered
-            if validate_user(phone_number):
+            # Validate user with phone number and password
+            user = validate_user(phone_number, password)
+            if user:
                 st.session_state.logged_in = True
                 st.session_state.phone_number = phone_number
                 st.success("Login successful!")
             else:
-                # Register the user if not already registered
-                insert_user(phone_number)
-                st.session_state.logged_in = True
-                st.session_state.phone_number = phone_number
-                st.success("Login successful! You are now registered.")
+                st.error("Invalid phone number or password. Please try again.")
+
+    if st.button("Register"):
+        if len(phone_number) != 10 or not phone_number.isdigit():
+            st.error("Invalid phone number. Please enter a 10-digit number.")
+        elif len(password) < 8:
+            st.error("Password must be at least 8 characters long.")
+        else:
+            # Register the user
+            insert_user(phone_number, password)
+            st.session_state.logged_in = True
+            st.session_state.phone_number = phone_number
+            st.success("Registration successful! You are now logged in.")
+
 else:
     st.sidebar.title(f"Welcome, {st.session_state.phone_number}")
     
